@@ -553,6 +553,7 @@
             .dashboard {
                 grid-template-columns: 1fr;
             }
+            .brand .logo img { display:block; }
             
             .chat-container {
                 width: calc(100% - 40px);
@@ -561,6 +562,47 @@
         }
     </style>
 </head>
+    <script>
+// Simple SVG logo (you can edit colors/shapes here)
+const svgLogo = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>
+  <rect width='64' height='64' rx='10' fill='#0066cc'/>
+  <g transform='translate(8 8)' stroke='#fff' stroke-width='2' fill='none'>
+    <circle cx='24' cy='24' r='12'/>
+    <path d='M24 12v24M12 24h24M6 6c8 8 36 8 48 0M6 42c8-8 36-8 48 0'/>
+  </g>
+</svg>`;
+
+// Create data URI
+const svgDataUri = 'data:image/svg+xml;utf8,' + encodeURIComponent(svgLogo);
+
+// Add or update favicon link
+(function setFavicon() {
+  let link = document.querySelector("link[rel~='icon']");
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'icon';
+    document.head.appendChild(link);
+  }
+  link.href = svgDataUri;
+})();
+
+// Replace the header logo element (.brand .logo) with an <img> using the data URI
+(function setHeaderLogo() {
+  const logoEl = document.querySelector('.brand .logo');
+  if (!logoEl) return;
+  // replace content with an image to keep styles and accessibility
+  logoEl.innerHTML = '';
+  const img = document.createElement('img');
+  img.src = svgDataUri;
+  img.alt = 'RePairZM';
+  img.style.width = '44px';
+  img.style.height = '44px';
+  img.style.borderRadius = '8px';
+  img.style.display = 'block';
+  img.style.objectFit = 'cover';
+  logoEl.appendChild(img);
+})();
+</script>
 <body>
     <!-- Header & Navigation -->
     <header>
