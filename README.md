@@ -1,21 +1,910 @@
-# RePairZM — Single-file prototype
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>RePairZM — Find Verified Repairers</title>
+  <style>
+    :root{
+      --accent:#0066cc;
+      --muted:#666;
+      --bg:#f7f9fc;
+      --card:#fff;
+      --danger:#d9534f;
+      --success:#28a745;
+      --glass: rgba(255,255,255,0.85);
+      font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#eaf2ff 0%, var(--bg) 100%);color:#222;}
+    .app{max-width:1100px;margin:10px auto;padding:12px;}
+    header{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px;color:var(--accent);}
+    .brand .logo{width:44px;height:44px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;}
+    nav{margin-left:auto;display:flex;gap:8px;align-items:center;}
+    button, .btn{background:var(--accent);color:#fff;border:0;padding:8px 12px;border-radius:8px;cursor:pointer;}
+    .btn.secondary{background:transparent;color:var(--accent);border:1px solid var(--accent);}
+    .btn.ghost{background:transparent;border:1px dashed #ccc;color:#333;}
+    .grid{display:grid;grid-template-columns:1fr 360px;gap:12px;}
+    .card{background:var(--card);padding:12px;border-radius:12px;box-shadow:0 6px 18px rgba(10,20,40,0.06);}
+    .searchStrip{display:flex;gap:8px;align-items:center;}
+    input[type=text], select, textarea{padding:10px;border-radius:8px;border:1px solid #ddd;font-size:14px;width:100%;box-sizing:border-box;}
+    .list{display:flex;flex-direction:column;gap:8px;}
+    .repairer{display:flex;gap:10px;align-items:center;border-radius:10px;padding:10px;border:1px solid #f0f0f0;}
+    .avatar{width:56px;height:56px;border-radius:10px;background:#eee;display:flex;align-items:center;justify-content:center;font-weight:700;color:#555;}
+    .meta{flex:1;}
+    .meta h4{margin:0;font-size:16px;}
+    .meta p{margin:4px 0 0 0;color:var(--muted);font-size:13px;}
+    .filters{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;}
+    small{color:var(--muted);}
+    footer{margin-top:14px;text-align:center;color:var(--muted);font-size:13px;}
+    /* admin badge */
+    .badge{background:#eef7ff;color:var(--accent);padding:4px 8px;border-radius:999px;font-size:12px;}
+    /* responsive */
+    @media(max-width:900px){
+      .grid{grid-template-columns:1fr;}
+      nav{display:none;}
+      .brand{font-size:18px;}
+    }
+    /* tabs */
+    .tabs{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
+    .tab{padding:8px 10px;border-radius:8px;border:1px solid #eee;background:transparent;cursor:pointer;}
+    .tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+    /* small components */
+    .row{display:flex;gap:8px;align-items:center;}
+    .muted{color:var(--muted);font-size:13px;}
+    .pill{padding:4px 8px;border-radius:999px;font-size:12px;border:1px solid #eee;background:#fafafa;}
+    .rating{color:#f6a821;font-weight:700;margin-left:6px;}
+    .tiny{font-size:12px;color:var(--muted);}
+    /* modal */
+    .modal-backdrop{position:fixed;inset:0;background:rgba(10,20,40,0.4);display:flex;align-items:center;justify-content:center;z-index:999;}
+    .modal{width:100%;max-width:720px;background:var(--card);border-radius:12px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,0.12);}
+    .two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+    @media(max-width:600px){.two-col{grid-template-columns:1fr;}}
+    .chatBox{height:320px;overflow:auto;border:1px solid #eee;padding:10px;border-radius:10px;background:#fafafa;}
+    .msg{padding:8px 10px;border-radius:10px;margin:6px 0;max-width:80%;}
+    .msg.me{background:var(--accent);color:#fff;margin-left:auto;}
+    .msg.other{background:#fff;border:1px solid #eee;}
+    .smallMuted{font-size:12px;color:#999;}
+    .linklike{color:var(--accent);cursor:pointer;text-decoration:underline;}
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header>
+      <div class="brand" onclick="showHome()"><div class="logo">RZ</div>RePairZM</div>
+      <div class="muted tiny">Find verified repairers fast</div>
+      <nav id="topNav">
+        <button class="btn ghost" onclick="showRequestForm()">Request Repair</button>
+        <button id="loginBtn" class="btn secondary" onclick="openAuth('login')">Login</button>
+        <button id="signupBtn" class="btn" onclick="openAuth('signup')">Sign up</button>
+      </nav>
+    </header>
 
-This repository hosts a single-file prototype of RePairZM (index.html). It is a demo static site that stores data in the browser (localStorage) and should be used only for demonstration.
+    <main>
+      <div class="grid">
+        <!-- main column -->
+        <section>
+          <div class="card" id="homeSection">
+            <div class="searchStrip">
+              <select id="searchDevice">
+                <option value="">All device types</option>
+                <option>Phone</option>
+                <option>Tablet</option>
+                <option>Laptop</option>
+                <option>TV</option>
+                <option>Console</option>
+                <option>Other</option>
+              </select>
+              <input type="text" id="searchLocation" placeholder="Location (city, neighborhood)" />
+              <input type="text" id="searchQuery" placeholder="Keywords (screen, battery, water, slow...)" />
+              <button class="btn" onclick="searchRepairers()">Search</button>
+              <button class="btn secondary" onclick="geoLocate()">Use my location</button>
+            </div>
 
-How to deploy (GitHub Pages)
-1. Ensure `index.html` is at the repository root.
-2. Push or upload to the `main` branch of a public GitHub repository.
-3. In GitHub repository → Settings → Pages → Set source to `main` / root `/`.
-4. Visit the site at `https://<RepairZM>.github.io/<repo>/`.
+            <div class="filters">
+              <label class="pill">Show only <input id="filterVerified" type="checkbox" checked onchange="renderRepairerList()" /> Verified</label>
+              <label class="pill">Min rating
+                <select id="filterRating" onchange="renderRepairerList()">
+                  <option value="0">Any</option>
+                  <option value="4">4+</option>
+                  <option value="3">3+</option>
+                </select>
+              </label>
+              <label class="pill">Sort
+                <select id="sortMode" onchange="renderRepairerList()">
+                  <option value="relevance">Relevance</option>
+                  <option value="rating">Rating</option>
+                  <option value="location">Location</option>
+                </select>
+              </label>
+            </div>
 
-Quick test checklist after you publish
-- Open the Pages URL from desktop and mobile.
-- Click "Seed demo data" to add sample repairers.
-- Sign up as a user and sign up as a repairer (repairer accounts are unverified until an admin verifies them).
-- Create a repair request, check AI-matching, and simulate payment.
-- Start a chat to see localStorage conversation persistence.
+            <h3 style="margin:10px 0 6px 0">Repairer Directory</h3>
+            <div id="repairerList" class="list"></div>
+            <div style="margin-top:10px" id="noResults" class="muted" hidden>No repairers found.</div>
+          </div>
 
-Notes and warnings
-- Authentication, payments, and chat are demo-only (client-side). Use a server/backend before going production.
-- For production consider Supabase/Firebase for Auth + Realtime, and Stripe for payments.
-- Do not store plaintext passwords or secret API keys in a public repo or in frontend code.
+          <div class="card" style="margin-top:12px;">
+            <h4>How RePairZM works</h4>
+            <ol>
+              <li>Search repairers by device and location, or request help with your issue.</li>
+              <li>Requests are matched to verified repairers using our AI-matching (prototype).</li>
+              <li>Admin manually verifies repairers. Chat, pay, and schedule through the app.</li>
+            </ol>
+            <small class="muted">This is a single-file prototype. For production you should use a secure backend, real payments and realtime messaging infrastructure.</small>
+          </div>
+        </section>
+
+        <!-- sidebar -->
+        <aside>
+          <div class="card">
+            <h4>Your account</h4>
+            <div id="userPanel">
+              <div class="muted">Not signed in</div>
+              <div style="margin-top:8px">
+                <button class="btn" onclick="openAuth('signup')">Create account</button>
+                <button class="btn secondary" onclick="openAuth('login')">Sign in</button>
+              </div>
+            </div>
+
+            <div id="accountPanel" hidden>
+              <div id="accountName" style="font-weight:700"></div>
+              <div class="tiny" id="accountRole"></div>
+              <div style="margin-top:8px">
+                <button class="btn" onclick="openProfile()">Profile</button>
+                <button class="btn ghost" onclick="logout()">Logout</button>
+                <button id="adminBtn" class="btn" style="display:none;margin-left:4px" onclick="openAdmin()">Admin</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:12px;">
+            <h4>Quick actions</h4>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <button class="btn" onclick="showRequestForm()">Create a request</button>
+              <button class="btn secondary" onclick="showConversations()">Open chats</button>
+              <button class="btn ghost" onclick="seedDemoData()">Seed demo data</button>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top:12px;">
+            <h4>Status</h4>
+            <div id="stats" class="muted tiny"></div>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <footer>
+      Built as a single-file prototype. Remember: production requires secure server-side logic and integrations.
+    </footer>
+  </div>
+
+  <!-- Modals area -->
+  <div id="modals"></div>
+
+  <script>
+    /*************************************************************************
+     Single-file RePairZM prototype
+     - Data stored in localStorage (demo only)
+     - Authentication: client-side only (not secure)
+     - Payments: simulated (mark as paid)
+     - Chat: in-memory / localStorage messages
+     - AI matching: simple keyword + device + rating scoring function
+     *************************************************************************/
+
+    // ---------- Utility / Data Layer ----------
+    const STORAGE_KEY = 'repairzm_v1';
+    let state = loadState();
+    let currentUser = null;
+
+    function loadState(){
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw) return JSON.parse(raw);
+      // initialize with empty data + admin account
+      const init = {
+        users: [
+          {id: 'u_admin', role:'admin', name:'Admin', email:'admin@repairzm.local', password:'admin', contact:'', createdAt: Date.now()}
+        ],
+        repairers: [],
+        requests: [],
+        conversations: [] // {id, participants:[userId, repairerId], messages:[{fromId, text, ts}]}
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(init));
+      return init;
+    }
+
+    function saveState(){
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      renderRepairerList();
+      renderAccountPanel();
+      renderStats();
+    }
+
+    // quick id generator
+    function id(prefix='id'){return prefix + '_' + Math.random().toString(36).slice(2,9);}
+
+    // ---------- Demo seed ----------
+    function seedDemoData(){
+      // create sample repairers
+      const sample = [
+        {name:'FastFix Phones', location:'Lusaka', deviceTypes:['Phone','Tablet'], rating:4.7, bio:'Screen replacements, battery, water damage', isVerified:true, contact:'+260971000001'},
+        {name:'LaptopCare ZM', location:'Kitwe', deviceTypes:['Laptop'], rating:4.5, bio:'Motherboard repairs, data recovery', isVerified:true, contact:'+260971000002'},
+        {name:'TV Repair Pros', location:'Lusaka', deviceTypes:['TV','Console'], rating:3.9, bio:'TV screen, HDMI, power issues', isVerified:false, contact:'+260971000003'},
+        {name:'MobileMedix', location:'Ndola', deviceTypes:['Phone'], rating:4.0, bio:'Battery and screen services, fast turn-around', isVerified:true, contact:'+260971000004'},
+      ];
+      sample.forEach(s => {
+        state.repairers.push({
+          id: id('r'),
+          name: s.name,
+          location: s.location,
+          deviceTypes: s.deviceTypes,
+          rating: s.rating,
+          bio: s.bio,
+          isVerified: s.isVerified,
+          contact: s.contact,
+          createdAt: Date.now()
+        });
+      });
+      saveState();
+      alert('Demo repairers added.');
+    }
+
+    // ---------- Auth / Profile ----------
+    function openAuth(mode='login'){
+      renderModal(`<h3>${mode==='signup'?'Create an account':'Sign in'}</h3>
+        <div style="margin-top:8px">
+          <label><small>Name</small><input id="auth_name" type="text" placeholder="Your full name" ${mode==='login'?'hidden':''}></label>
+        </div>
+        <div style="margin-top:8px">
+          <label><small>Email</small><input id="auth_email" type="text" placeholder="you@email.com"></label>
+        </div>
+        <div style="margin-top:8px">
+          <label><small>Password</small><input id="auth_pass" type="password" placeholder="password"></label>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px;">
+          <select id="auth_role"><option value="user">User (customer)</option><option value="repairer">Repairer</option></select>
+          <button class="btn" onclick="submitAuth('${mode}')">${mode==='signup'?'Create account':'Sign in'}</button>
+          <button class="btn ghost" onclick="closeModal()">Cancel</button>
+        </div>
+        <p class="muted tiny" style="margin-top:8px">Note: This demo stores credentials in your browser (insecure). Use a server and hashed passwords in production.</p>
+      `);
+    }
+
+    function submitAuth(mode){
+      const email = document.getElementById('auth_email').value.trim();
+      const pass = document.getElementById('auth_pass').value;
+      const name = document.getElementById('auth_name') ? document.getElementById('auth_name').value.trim() : '';
+      const role = document.getElementById('auth_role').value;
+
+      if(!email || !pass){ alert('Email and password required'); return; }
+
+      if(mode==='signup'){
+        if(state.users.some(u=>u.email.toLowerCase()===email.toLowerCase())){ alert('Email already exists'); return; }
+        const newUser = {id:id('u'), role, name: name||email.split('@')[0], email, password:pass, contact:'', createdAt: Date.now()};
+        state.users.push(newUser);
+        saveState();
+        if(role==='repairer'){
+          // create a repairer profile entry waiting for verification
+          const newRepairer = {
+            id: id('r'),
+            userId: newUser.id,
+            name: newUser.name,
+            location: '',
+            deviceTypes: [],
+            rating: 0,
+            bio: '',
+            isVerified: false,
+            contact: newUser.contact || '',
+            createdAt: Date.now()
+          };
+          state.repairers.push(newRepairer);
+          saveState();
+          alert('Repairer account created. Admin will verify your profile.');
+        } else {
+          alert('Account created. You are signed in.');
+        }
+        currentUser = newUser;
+        closeModal();
+        renderAccountPanel();
+        return;
+      }
+
+      // login
+      const found = state.users.find(u => u.email.toLowerCase()===email.toLowerCase() && u.password===pass);
+      if(!found){ alert('Invalid credentials'); return; }
+      currentUser = found;
+      closeModal();
+      renderAccountPanel();
+    }
+
+    function logout(){
+      currentUser = null;
+      renderAccountPanel();
+    }
+
+    function openProfile(){
+      if(!currentUser){ openAuth('login'); return; }
+      // find repairer profile if repairer
+      const repairer = state.repairers.find(r => r.userId === currentUser.id);
+      renderModal(`<h3>Profile</h3>
+        <div class="two-col" style="margin-top:8px">
+          <div>
+            <label><small>Full name</small><input id="pf_name" value="${escapeHtml(currentUser.name||'')}" /></label>
+            <label><small>Email</small><input id="pf_email" value="${escapeHtml(currentUser.email||'')}" /></label>
+            <label><small>Contact</small><input id="pf_contact" value="${escapeHtml(currentUser.contact||'')}" /></label>
+          </div>
+          <div>
+            <label><small>Role</small><input disabled value="${currentUser.role}" /></label>
+            ${repairer ? `<label><small>Location</small><input id="pf_loc" value="${escapeHtml(repairer.location||'')}" /></label>
+            <label><small>Device types (comma separated)</small><input id="pf_dev" value="${escapeHtml((repairer.deviceTypes||[]).join(','))}" /></label>
+            <label><small>Bio</small><textarea id="pf_bio">${escapeHtml(repairer.bio||'')}</textarea></label>` : ''}
+          </div>
+        </div>
+        <div style="margin-top:8px"><button class="btn" onclick="saveProfile()">Save</button><button class="btn ghost" onclick="closeModal()">Close</button></div>
+      `);
+    }
+
+    function saveProfile(){
+      const name = document.getElementById('pf_name').value.trim();
+      const email = document.getElementById('pf_email').value.trim();
+      const contact = document.getElementById('pf_contact').value.trim();
+      if(!name || !email){ alert('Name and email required'); return; }
+      currentUser.name = name; currentUser.email = email; currentUser.contact = contact;
+      // update repairer if exists
+      const repairer = state.repairers.find(r => r.userId === currentUser.id);
+      if(repairer){
+        repairer.location = document.getElementById('pf_loc').value.trim();
+        repairer.deviceTypes = document.getElementById('pf_dev').value.split(',').map(s=>s.trim()).filter(Boolean);
+        repairer.bio = document.getElementById('pf_bio').value.trim();
+        repairer.contact = contact || repairer.contact;
+      }
+      saveState();
+      closeModal();
+      alert('Profile saved.');
+    }
+
+    // ---------- Repairer Directory UI ----------
+    function renderRepairerList(results = null){
+      const container = document.getElementById('repairerList');
+      container.innerHTML = '';
+      const searchDevice = document.getElementById('searchDevice')?.value || '';
+      const searchLocation = document.getElementById('searchLocation')?.value.trim().toLowerCase() || '';
+      const searchQuery = document.getElementById('searchQuery')?.value.trim().toLowerCase() || '';
+      const showVerified = document.getElementById('filterVerified')?.checked ?? true;
+      const minRating = parseFloat(document.getElementById('filterRating')?.value || 0);
+      const sortMode = document.getElementById('sortMode')?.value || 'relevance';
+
+      // source list
+      let list = results ? results.slice() : state.repairers.slice();
+      // apply filters
+      list = list.filter(r => {
+        if(showVerified && !r.isVerified) return false;
+        if(r.rating < minRating) return false;
+        if(searchDevice && !r.deviceTypes?.map(d=>d.toLowerCase()).includes(searchDevice.toLowerCase())) return false;
+        if(searchLocation && !(r.location||'').toLowerCase().includes(searchLocation)) return false;
+        if(searchQuery){
+          const hay = ((r.name||'')+' '+(r.bio||'')+' '+(r.deviceTypes||[]).join(' ')).toLowerCase();
+          if(!hay.includes(searchQuery)) return false;
+        }
+        return true;
+      });
+
+      if(!list.length){
+        document.getElementById('noResults').hidden = false;
+        return;
+      } else document.getElementById('noResults').hidden = true;
+
+      // sort
+      if(sortMode==='rating') list.sort((a,b)=>b.rating - a.rating);
+      else if(sortMode==='location'){
+        const qLoc = searchLocation;
+        list.sort((a,b)=>{
+          const da = (a.location||'').toLowerCase().includes(qLoc)?0:1;
+          const db = (b.location||'').toLowerCase().includes(qLoc)?0:1;
+          return da-db;
+        });
+      } else { /* relevance default: keep order */ }
+
+      // render items
+      list.forEach(r => {
+        const el = document.createElement('div');
+        el.className = 'repairer';
+        el.innerHTML = `
+          <div class="avatar">${(r.name||'R').split(' ').map(s=>s[0]).slice(0,2).join('')}</div>
+          <div class="meta">
+            <h4>${escapeHtml(r.name)} ${r.isVerified?'<span class="badge">Verified</span>':''}</h4>
+            <p>${escapeHtml(r.bio||'No bio')} <span class="tiny">• ${escapeHtml(r.deviceTypes?.join(', ')||'Any')}</span></p>
+            <div class="row" style="margin-top:6px">
+              <div class="tiny">${escapeHtml(r.location||'—')}</div>
+              <div class="rating">${r.rating?r.rating.toFixed(1):'—'}</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <button class="btn" onclick="openRepairer(${JSON.stringify(r.id)})">View</button>
+            <button class="btn secondary" onclick="startChatWithRepairer(${JSON.stringify(r.id)})">Chat</button>
+          </div>
+        `;
+        container.appendChild(el);
+      });
+    }
+
+    function openRepairer(rId){
+      const r = state.repairers.find(x => x.id===rId);
+      if(!r){ alert('Repairer not found'); return; }
+      // show profile modal with ability to request
+      renderModal(`<div style="display:flex;gap:12px;align-items:center;">
+          <div class="avatar" style="width:80px;height:80px;font-size:22px">${(r.name||'R').split(' ').map(s=>s[0]).slice(0,2).join('')}</div>
+          <div>
+            <h3 style="margin:0">${escapeHtml(r.name)} ${r.isVerified?'<span class="badge">Verified</span>':''}</h3>
+            <div class="tiny">${escapeHtml(r.location||'')}</div>
+            <div style="margin-top:6px"><small class="muted">${escapeHtml(r.bio||'')}</small></div>
+            <div style="margin-top:8px" class="row">
+              <div class="pill">${escapeHtml((r.deviceTypes||[]).join(', ')||'All devices')}</div>
+              <div style="font-weight:700;margin-left:auto">${r.rating?r.rating.toFixed(1):'—'}</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;">
+          <button class="btn" onclick="showRequestForm('${r.id}')">Request this repairer</button>
+          <button class="btn secondary" onclick="startChatWithRepairer('${r.id}')">Chat</button>
+          <a class="btn ghost" href="tel:${escapeHtml(r.contact||'')}" onclick="closeModal()">Call</a>
+        </div>
+      `);
+    }
+
+    // ---------- Request creation & AI matching ----------
+    function showRequestForm(repairerId=null){
+      if(!currentUser){ openAuth('login'); return; }
+      const deviceOptions = ['Phone','Tablet','Laptop','TV','Console','Other'];
+      const devicesHtml = deviceOptions.map(d => `<option ${d===''? 'selected': ''}>${d}</option>`).join('');
+      renderModal(`<h3>Create repair request</h3>
+        <div style="margin-top:8px">
+          <label><small>Device type</small>
+            <select id="req_device">${deviceOptions.map(d=>`<option>${d}</option>`).join('')}</select>
+          </label>
+          <label style="margin-top:8px"><small>Location</small><input id="req_location" placeholder="City or neighborhood" value="${escapeHtml(currentUser.contact||'')}" /></label>
+          <label style="margin-top:8px"><small>Describe the issue</small><textarea id="req_desc" placeholder="e.g. cracked screen after dropping, water in speakers..."></textarea></label>
+          <label style="margin-top:8px"><small>Prefer repairer (optional)</small><input id="req_pref" placeholder="Repairer id / name" value="${repairerId?repairerId:''}" /></label>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:8px;">
+          <button class="btn" onclick="submitRequest()">Submit & Match</button>
+          <button class="btn ghost" onclick="closeModal()">Cancel</button>
+        </div>
+        <p class="muted tiny" style="margin-top:8px">Matching uses a local AI-like heuristic (keyword + device + rating). In production replace with an API call to a server-side model.</p>
+      `);
+      if(repairerId) document.getElementById('req_pref').value = repairerId;
+    }
+
+    function submitRequest(){
+      const device = document.getElementById('req_device').value;
+      const loc = document.getElementById('req_location').value.trim();
+      const desc = document.getElementById('req_desc').value.trim();
+      const pref = document.getElementById('req_pref').value.trim();
+      if(!device || !desc){ alert('Device and description required'); return; }
+
+      const req = {
+        id: id('req'),
+        userId: currentUser.id,
+        deviceType: device,
+        location: loc,
+        description: desc,
+        status: 'open',
+        createdAt: Date.now(),
+        matchedRepairerId: null,
+        paid: false
+      };
+      state.requests.push(req);
+      saveState();
+      closeModal();
+
+      // If user specified a repairer and it's verified, match directly
+      if(pref){
+        const byId = state.repairers.find(r => r.id===pref || r.name.toLowerCase()===pref.toLowerCase());
+        if(byId && byId.isVerified){
+          req.matchedRepairerId = byId.id;
+          saveState();
+          alert('Request created and matched to chosen repairer.');
+          openRequestDetails(req.id);
+          return;
+        }
+      }
+
+      // Run AI matching (prototype)
+      const matched = aiMatchRepairers(req);
+      if(matched.length){
+        req.matchedRepairerId = matched[0].id;
+        saveState();
+        alert('Request created and matched to: ' + matched[0].name);
+        openRequestDetails(req.id);
+      } else {
+        alert('Request created. No good match found — admin / repairers will review requests.');
+        openRequestDetails(req.id);
+      }
+    }
+
+    // Simple AI matching prototype
+    function aiMatchRepairers(req){
+      // Score each repairer on device match, location substring match, keyword overlap, rating
+      const scores = state.repairers.map(r => {
+        let score = 0;
+        if(r.isVerified) score += 2;
+        if((r.deviceTypes||[]).map(d=>d.toLowerCase()).includes(req.deviceType.toLowerCase())) score += 3;
+        if(req.location && (r.location||'').toLowerCase().includes(req.location.toLowerCase())) score += 1.5;
+        // keyword matching
+        const kw = req.description.toLowerCase().split(/\W+/).filter(Boolean);
+        const text = ((r.name||'') + ' ' + (r.bio||'') + ' ' + (r.deviceTypes||[]).join(' ')).toLowerCase();
+        const common = kw.filter(k => text.includes(k)).length;
+        score += common * 0.8;
+        // rating increases score
+        score += (r.rating || 0) / 5;
+        return {r, score};
+      });
+      // filter low scorers
+      const sorted = scores.filter(s=>s.score>1).sort((a,b)=>b.score-a.score).map(x=>x.r);
+      return sorted;
+    }
+
+    function openRequestDetails(reqId){
+      const req = state.requests.find(r=>r.id===reqId);
+      if(!req) { alert('Request not found'); return; }
+      const rep = state.repairers.find(r=>r.id===req.matchedRepairerId);
+      renderModal(`<h3>Request: ${escapeHtml(req.deviceType)}</h3>
+        <div class="muted tiny">Status: ${escapeHtml(req.status)} • Created: ${new Date(req.createdAt).toLocaleString()}</div>
+        <p style="margin-top:8px">${escapeHtml(req.description)}</p>
+        <div style="margin-top:10px">
+          <div><strong>Location:</strong> ${escapeHtml(req.location||'—')}</div>
+          <div><strong>Matched repairer:</strong> ${rep?escapeHtml(rep.name):'<span class="muted">None</span>'}</div>
+          <div style="margin-top:10px;display:flex;gap:8px;">
+            <button class="btn" onclick="openChatForRequest('${req.id}')">Open chat</button>
+            <button class="btn secondary" onclick="simulatePayment('${req.id}')">${req.paid? 'Paid':'Pay'}</button>
+            <button class="btn ghost" onclick="closeModal()">Close</button>
+          </div>
+        </div>
+      `);
+    }
+
+    // ---------- Chat (simple local) ----------
+    function startChatWithRepairer(rId){
+      if(!currentUser){ openAuth('login'); return; }
+      const r = state.repairers.find(x=>x.id===rId);
+      if(!r){ alert('Repairer not found'); return; }
+      // ensure conversation exists between current user and repairer
+      let conv = state.conversations.find(c => {
+        return c.participants.includes(currentUser.id) && c.participants.includes(r.userId || r.id);
+      });
+      if(!conv){
+        conv = {id:id('c'), participants:[currentUser.id, r.userId || r.id], messages:[]};
+        state.conversations.push(conv);
+        saveState();
+      }
+      openChat(conv.id);
+    }
+
+    function showConversations(){
+      if(!currentUser){ openAuth('login'); return; }
+      const myConvs = state.conversations.filter(c => c.participants.includes(currentUser.id));
+      if(!myConvs.length){ alert('No conversations yet'); return; }
+      // list
+      let html = '<h3>Conversations</h3><div style="display:flex;flex-direction:column;gap:8px">';
+      myConvs.forEach(c=>{
+        const otherId = c.participants.find(p=>p!==currentUser.id);
+        const otherUser = state.users.find(u=>u.id===otherId) || {};
+        html += `<div style="display:flex;justify-content:space-between;align-items:center">
+          <div><strong>${escapeHtml(otherUser.name || otherId)}</strong><div class="tiny muted">${escapeHtml(otherUser.email || '')}</div></div>
+          <div><button class="btn" onclick="openChat('${c.id}')">Open</button></div>
+        </div>`;
+      });
+      html += '</div>';
+      renderModal(html + '<div style="margin-top:10px"><button class="btn ghost" onclick="closeModal()">Close</button></div>');
+    }
+
+    function openChat(convId){
+      const conv = state.conversations.find(c => c.id===convId);
+      if(!conv){ alert('Conversation not found'); return; }
+      const otherId = conv.participants.find(p=>p!==currentUser.id);
+      const otherUser = state.users.find(u=>u.id===otherId) || {};
+      renderModal(`<h3>Chat with ${escapeHtml(otherUser.name||otherId)}</h3>
+        <div class="chatBox" id="chatBox_${conv.id}"></div>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          <input id="chatInput" placeholder="Message..." />
+          <button class="btn" onclick="sendMessage('${conv.id}')">Send</button>
+        </div>
+        <div style="margin-top:8px"><button class="btn ghost" onclick="closeModal()">Close</button></div>
+      `);
+      renderChatMessages(conv.id);
+    }
+
+    function openChatForRequest(reqId){
+      const req = state.requests.find(r=>r.id===reqId);
+      if(!req) return alert('Request missing');
+      if(!req.matchedRepairerId) return alert('No matched repairer for this request yet');
+      const r = state.repairers.find(rr=>rr.id===req.matchedRepairerId);
+      if(!r) return alert('Repairer not found');
+      // find conversation between user and repairer
+      let conv = state.conversations.find(c => c.participants.includes(currentUser.id) && c.participants.includes(r.userId || r.id));
+      if(!conv){
+        conv = {id:id('c'), participants:[currentUser.id, r.userId || r.id], messages:[]};
+        state.conversations.push(conv);
+        saveState();
+      }
+      openChat(conv.id);
+    }
+
+    function sendMessage(convId){
+      const inp = document.getElementById('chatInput');
+      if(!inp || !inp.value.trim()) return;
+      const conv = state.conversations.find(c=>c.id===convId);
+      conv.messages.push({fromId: currentUser.id, text: inp.value.trim(), ts: Date.now()});
+      saveState();
+      inp.value = '';
+      renderChatMessages(convId);
+      // auto-reply simulation for repairer users to make demo feel alive
+      const otherId = conv.participants.find(p=>p!==currentUser.id);
+      const otherUser = state.users.find(u=>u.id===otherId);
+      if(!otherUser || otherUser.role!=='repairer') return;
+      setTimeout(()=>{
+        conv.messages.push({fromId: otherId, text: "Thanks — got your message, I'll check and respond shortly.", ts: Date.now()});
+        saveState();
+        renderChatMessages(convId);
+      }, 1200);
+    }
+
+    function renderChatMessages(convId){
+      const conv = state.conversations.find(c=>c.id===convId);
+      const box = document.getElementById('chatBox_' + convId);
+      if(!box) return;
+      box.innerHTML = '';
+      conv.messages.forEach(m=>{
+        const me = m.fromId === currentUser.id;
+        const el = document.createElement('div');
+        el.className = 'msg ' + (me ? 'me' : 'other');
+        el.innerHTML = `<div>${escapeHtml(m.text)}</div><div class="smallMuted" style="font-size:11px;margin-top:6px">${new Date(m.ts).toLocaleString()}</div>`;
+        box.appendChild(el);
+      });
+      box.scrollTop = box.scrollHeight;
+    }
+
+    // ---------- Payments simulation ----------
+    function simulatePayment(reqId){
+      const req = state.requests.find(r=>r.id===reqId);
+      if(!req) return;
+      if(req.paid){ alert('Already paid'); return; }
+      const amt = 20 + Math.floor(Math.random()*80); // random demo price
+      if(!confirm(`Simulate paying ZMW ${amt} for this repair request? (Demo)`)) return;
+      req.paid = true;
+      req.status = 'awaiting_repairer';
+      saveState();
+      alert('Payment simulated. Request status updated.');
+      openRequestDetails(req.id);
+    }
+
+    // ---------- Admin dashboard ----------
+    function openAdmin(){
+      if(!currentUser || currentUser.role!=='admin'){ alert('Admin only'); return; }
+      // admin dashboard modal
+      renderModal(`<h3>Admin Dashboard</h3>
+        <div class="tabs" id="adminTabs">
+          <div class="tab active" onclick="adminTab('users')">Users</div>
+          <div class="tab" onclick="adminTab('repairers')">Repairers</div>
+          <div class="tab" onclick="adminTab('requests')">Requests</div>
+          <div class="tab" onclick="adminTab('convos')">Conversations</div>
+        </div>
+        <div id="adminContent"></div>
+        <div style="margin-top:8px"><button class="btn ghost" onclick="closeModal()">Close</button></div>
+      `);
+      adminTab('users');
+    }
+
+    function adminTab(tab){
+      const tabs = document.querySelectorAll('#adminTabs .tab');
+      tabs.forEach(t=>t.classList.remove('active'));
+      const active = Array.from(tabs).find(t=>t.textContent.toLowerCase()===tab);
+      if(active) active.classList.add('active');
+      const content = document.getElementById('adminContent');
+      if(tab==='users'){
+        content.innerHTML = '<h4>Registered users</h4><div class="list">'+ state.users.map(u=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px;border-bottom:1px solid #fafafa"><div><strong>${escapeHtml(u.name)}</strong> <div class="tiny muted">${escapeHtml(u.email)} • ${escapeHtml(u.role)}</div></div><div><button class="btn" onclick="adminViewUser(${JSON.stringify(u.id)})">View</button></div></div>`).join('') + '</div>';
+      } else if(tab==='repairers'){
+        content.innerHTML = '<h4>Repairer profiles</h4><div class="list">'+ state.repairers.map(r=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px;border-bottom:1px solid #fafafa"><div><strong>${escapeHtml(r.name)}</strong> ${r.isVerified?'<span class="badge">Verified</span>':''}<div class="tiny muted">${escapeHtml(r.location||'')} • ${escapeHtml((r.deviceTypes||[]).join(', '))}</div></div><div><button class="btn" onclick="adminViewRepairer(${JSON.stringify(r.id)})">Manage</button></div></div>`).join('') + '</div>';
+      } else if(tab==='requests'){
+        content.innerHTML = '<h4>Requests</h4><div class="list">'+ state.requests.map(req=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px;border-bottom:1px solid #fafafa"><div><strong>${escapeHtml(req.deviceType)}</strong><div class="tiny muted">${escapeHtml(req.description.substring(0,80))}...</div></div><div><button class="btn" onclick="adminViewRequest(${JSON.stringify(req.id)})">Open</button></div></div>`).join('') + '</div>';
+      } else if(tab==='convos'){
+        content.innerHTML = '<h4>Conversations</h4><div class="list">'+ state.conversations.map(c=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px;border-bottom:1px solid #fafafa"><div><strong>${escapeHtml((state.users.find(u=>u.id===c.participants[0])||{}).name || c.participants[0])}</strong> &middot; <strong>${escapeHtml((state.users.find(u=>u.id===c.participants[1])||{}).name || c.participants[1])}</strong></div><div><button class="btn" onclick="openChat(${JSON.stringify(c.id)})">Open</button></div></div>`).join('') + '</div>';
+      }
+    }
+
+    function adminViewRepairer(rId){
+      const r = state.repairers.find(x=>x.id===rId);
+      if(!r) return alert('Repairer not found');
+      renderModal(`<h3>Manage repairer</h3>
+        <div><strong>${escapeHtml(r.name)}</strong> ${r.isVerified?'<span class="badge">Verified</span>':''}</div>
+        <div class="muted tiny">${escapeHtml(r.location||'')}</div>
+        <div style="margin-top:8px">${escapeHtml(r.bio||'')}</div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="btn" onclick="adminToggleVerify(${JSON.stringify(r.id)})">${r.isVerified? 'Unverify':'Verify'}</button>
+          <button class="btn secondary" onclick="adminDeleteRepairer(${JSON.stringify(r.id)})">Delete</button>
+          <button class="btn ghost" onclick="closeModal()">Close</button>
+        </div>
+      `);
+    }
+
+    function adminToggleVerify(rId){
+      const r = state.repairers.find(x=>x.id===rId);
+      if(!r) return;
+      r.isVerified = !r.isVerified;
+      saveState();
+      alert('Repairer verification changed.');
+      adminTab('repairers');
+      closeModal();
+    }
+
+    function adminDeleteRepairer(rId){
+      if(!confirm('Delete repairer profile? This cannot be undone in demo.')) return;
+      state.repairers = state.repairers.filter(r=>r.id!==rId);
+      saveState();
+      adminTab('repairers');
+      closeModal();
+    }
+
+    function adminViewRequest(reqId){
+      const req = state.requests.find(r=>r.id===reqId);
+      if(!req) return alert('Request not found');
+      const rep = state.repairers.find(r=>r.id===req.matchedRepairerId);
+      renderModal(`<h3>Request</h3>
+        <div><strong>${escapeHtml(req.deviceType)}</strong></div>
+        <div class="muted tiny">${new Date(req.createdAt).toLocaleString()}</div>
+        <p style="margin-top:8px">${escapeHtml(req.description)}</p>
+        <div><strong>Location:</strong> ${escapeHtml(req.location||'')}</div>
+        <div style="margin-top:8px">Matched: ${rep?escapeHtml(rep.name):'<span class="muted">None</span>'}</div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="btn" onclick="adminAssignRepairer(${JSON.stringify(req.id)})">Assign repairer</button>
+          <button class="btn secondary" onclick="adminCloseRequest(${JSON.stringify(req.id)})">Close request</button>
+          <button class="btn ghost" onclick="closeModal()">Close</button>
+        </div>
+      `);
+    }
+
+    function adminAssignRepairer(reqId){
+      // list repairers
+      const opts = state.repairers.map(r=>`<option value="${r.id}">${escapeHtml(r.name)} ${r.isVerified? '(Verified)':''}</option>`).join('');
+      renderModal(`<h3>Assign repairer</h3>
+        <div><select id="admin_assign">${opts}</select></div>
+        <div style="margin-top:8px"><button class="btn" onclick="adminAssignConfirm('${reqId}')">Assign</button><button class="btn ghost" onclick="closeModal()">Cancel</button></div>
+      `);
+    }
+
+    function adminAssignConfirm(reqId){
+      const sel = document.getElementById('admin_assign').value;
+      const req = state.requests.find(r=>r.id===reqId);
+      req.matchedRepairerId = sel;
+      saveState();
+      alert('Assigned.');
+      closeModal();
+    }
+
+    function adminCloseRequest(reqId){
+      const req = state.requests.find(r=>r.id===reqId);
+      req.status = 'closed_by_admin';
+      saveState();
+      alert('Request closed.');
+      closeModal();
+    }
+
+    function adminViewUser(uId){
+      const u = state.users.find(x=>x.id===uId);
+      if(!u) return;
+      renderModal(`<h3>User</h3>
+        <div><strong>${escapeHtml(u.name)}</strong></div>
+        <div class="tiny muted">${escapeHtml(u.email)}</div>
+        <div style="margin-top:8px">Role: ${escapeHtml(u.role)}</div>
+        <div style="margin-top:8px"><button class="btn" onclick="adminDeleteUser('${u.id}')">Delete user</button><button class="btn ghost" onclick="closeModal()">Close</button></div>
+      `);
+    }
+
+    function adminDeleteUser(uId){
+      if(!confirm('Delete user?')) return;
+      state.users = state.users.filter(u=>u.id!==uId);
+      // also remove repairers and conversations owned by user
+      state.repairers = state.repairers.filter(r=>r.userId !== uId);
+      state.conversations = state.conversations.filter(c=>!c.participants.includes(uId));
+      saveState();
+      closeModal();
+      adminTab('users');
+    }
+
+    // ---------- Helpers & UI ----------
+    function renderAccountPanel(){
+      const up = document.getElementById('userPanel');
+      const ap = document.getElementById('accountPanel');
+      const adminBtn = document.getElementById('adminBtn');
+      if(currentUser){
+        up.hidden = true;
+        ap.hidden = false;
+        document.getElementById('accountName').textContent = currentUser.name;
+        document.getElementById('accountRole').textContent = currentUser.email + ' • ' + currentUser.role;
+        if(currentUser.role==='admin') adminBtn.style.display = 'inline-block'; else adminBtn.style.display = 'none';
+
+        // top nav
+        document.getElementById('loginBtn').hidden = true;
+        document.getElementById('signupBtn').hidden = true;
+      } else {
+        up.hidden = false;
+        ap.hidden = true;
+        document.getElementById('loginBtn').hidden = false;
+        document.getElementById('signupBtn').hidden = false;
+      }
+      renderRepairerList();
+      renderStats();
+    }
+
+    function renderStats(){
+      const s = document.getElementById('stats');
+      s.innerHTML = `Repairers: ${state.repairers.length} • Verified: ${state.repairers.filter(r=>r.isVerified).length} • Requests: ${state.requests.length}`;
+    }
+
+    function searchRepairers(){
+      // naive: reuse renderRepairerList as it reads search inputs
+      renderRepairerList();
+    }
+
+    // small geolocation helper (uses browser geolocation; for demo only)
+    function geoLocate(){
+      if(!navigator.geolocation) { alert('Geolocation not supported'); return; }
+      navigator.geolocation.getCurrentPosition(pos=>{
+        // in demo we can't reverse geocode; just fill with coords truncated
+        document.getElementById('searchLocation').value = `lat:${pos.coords.latitude.toFixed(2)},lng:${pos.coords.longitude.toFixed(2)}`;
+      }, err=>{
+        alert('Geolocation failed: ' + err.message);
+      });
+    }
+
+    // modal helpers
+    function renderModal(html){
+      const modals = document.getElementById('modals');
+      modals.innerHTML = `<div class="modal-backdrop" onclick="closeModal()"><div class="modal" onclick="event.stopPropagation()">${html}</div></div>`;
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+    function closeModal(){ document.getElementById('modals').innerHTML = ''; }
+
+    function showHome(){ /* placeholder */ }
+
+    function escapeHtml(s){
+      if(!s) return '';
+      return String(s).replace(/[&<>"']/g, function(m){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]; });
+    }
+
+    // ---------- Init ----------
+    function init(){
+      // ensure admin exists
+      if(!state.users.some(u=>u.role==='admin')) state.users.push({id:'u_admin', role:'admin', name:'Admin', email:'admin@repairzm.local', password:'admin', contact:'', createdAt: Date.now()});
+      // attach event listeners
+      renderAccountPanel();
+      renderRepairerList();
+
+      // quick demo: create a repairer account user if none exist
+      if(!state.repairers.length){
+        // leave empty — user can seed demo data
+      }
+    }
+
+    // small utility to open request details by id from string in event handlers
+    window.openRequestDetails = openRequestDetails;
+    window.openAuth = openAuth;
+    window.openProfile = openProfile;
+    window.openAdmin = openAdmin;
+    window.showRequestForm = showRequestForm;
+    window.seedDemoData = seedDemoData;
+    window.startChatWithRepairer = startChatWithRepairer;
+    window.openRepairer = openRepairer;
+    window.openChat = openChat;
+    window.showConversations = showConversations;
+    window.searchRepairers = searchRepairers;
+    window.geoLocate = geoLocate;
+    window.logout = logout;
+    window.simulatePayment = simulatePayment;
+
+    // Start
+    init();
+  </script>
+</body>
+</html>
